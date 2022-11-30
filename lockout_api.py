@@ -12,7 +12,7 @@ from subprocess import Popen, PIPE
 import logging
 import smtplib
 import datetime
-
+from email.mime.text import MIMEText
 
 logging.basicConfig()
 LOGGER = logging.getLogger("werkzeug")
@@ -31,11 +31,11 @@ def get_email_from_username(username):
 
     with ADObjects(
         "dc2.bnl.gov",
-        authenticate=True,
-        username="n2sngrpmgr",
+        authenticate=False,
+        username=username,
         ca_certs_file="/etc/pki/ca-trust/source/anchors/bnlroot.crt",
         group_search="dc=bnl,dc=gov",
-        user_search="ou=cam - service accounts,ou=cam,dc=bnl,dc=gov",
+        user_search="ou=cam - users,ou=cam,dc=bnl,dc=gov",
     ) as ad:
 
         # Get the beamline group
@@ -56,7 +56,9 @@ def get_email_from_username(username):
         else:
             raise RuntimeError(f"Failed to validate group manager service account!")
 
-    return ret_msg
+        print(user['mail'])
+
+    return user['mail'] 
 
 
 def compose_email(username, hostname):
@@ -74,15 +76,25 @@ def hello():
 
 
 @app.route("/lockout", methods=["POST"])
-def start_experiment():
-    lockout_user = flask.request.headers.get("username", type=str)
-    host = flask.request.args.get("hostname", type=str)
-    print(f"Detected lockout for user {lockout_user} on host {hostname}...")
+def process_lockout_event():
+    
+    lockout_user = flask.request.json.get('username')
+    host = flask.request.json.get('hostname')
+    print(f"Detected lockout for user {lockout_user} on host {host}...")
 
-    send_to, subject_line, message_body = compose_email(lockout_user, hostname)
+    send_to, subject_line, message_body = compose_email(lockout_user, host)
 
-    return msg
-
+    msg = MIMEText(message_body)
+    msg['Subject'] = subject_line
+    msg['From'] = 'do-not-reply@bnl.gov'
+    msg['To'] = send_to
+    
+    with smtplib.SMTP('smtpgw.bnl.gov', 587) as mail_server:
+        mail_server.sendmail('do-not-reply@bnl.gov', send_to, msg.as_string())
+        ret = f'Sent "{subject_line}" message to "{send_to}"'
+        print(ret)
+    return ret
+    
 
 if __name__ == "__main__":
 
