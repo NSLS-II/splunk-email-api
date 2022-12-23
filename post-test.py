@@ -1,7 +1,7 @@
 import requests
 
 url = 'http://127.0.0.1:5000/'
-test_args = { 'username': 'jwlodek', 'hostname': 'jwlodek-vm1.nsls2.bnl.local' }
+test_args = { 'nsls2_locked_out_user': 'jwlodek', 'nsls2_host': 'jwlodek-vm1.nsls2.bnl.local' }
 
 print('Pinging Lockout API to make sure it is alive...')
 r = requests.get(url)

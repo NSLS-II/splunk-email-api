@@ -2,3 +2,4 @@ Flask
 requests
 pyyaml
 ldap3
+Jinja2
